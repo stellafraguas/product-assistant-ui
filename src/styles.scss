@@ -1,0 +1,25 @@
+.table thead {
+  background-color: #d2232a !important;
+}
+
+.table thead th {
+  color: #eeeeee !important;
+  background-color: #d2232a !important;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: #fff0f1;
+}
+
+.table-striped tbody tr:nth-of-type(even) {
+  background-color: #ffe5e6;
+}
+
+.table td {
+  color: #5e0000;
+  border-color: #d2232a;
+}
+
+.table th {
+  border-color: #d2232a;
+}
