@@ -1,11 +1,5 @@
 import { Component } from '@angular/core';
-import {
-  FormBuilder,
-  FormGroup,
-  Validators,
-  ReactiveFormsModule,
-  FormControl,
-} from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormControl, AbstractControl } from '@angular/forms';
 import { ProductService } from '../product.service';
 import { CategoryService } from '../../category/category.service';
 import { Product } from '../product.model';
@@ -25,6 +19,9 @@ export class TableComponent {
   products: Product[] = [];
   categories: Category[] = [];
   newProductForm: FormGroup | null = null;
+  editProductForm: FormGroup | null = null;
+  editingProductId: number | null = null;
+  isAdmin = false;
 
   constructor(
     private productService: ProductService,
@@ -61,16 +58,49 @@ export class TableComponent {
       categoryDisplayName: new FormControl('', Validators.required),
       price: new FormControl(null, [Validators.required, Validators.min(0)]),
       active: new FormControl(true, Validators.required),
-      createdBy: new FormControl('user', Validators.required),
+      createdBy: new FormControl(this.isAdmin ? 'admin' : 'user', Validators.required),
       createdAt: new FormControl(new Date().toISOString().slice(0, 16), Validators.required)
     });
 
     this.loadCategories(() => this.syncCategoryFields(this.newProductForm!));
   }
 
+  edit(product: Product): void {
+    this.cancel();
+    this.editingProductId = product.id ?? null;
+
+    this.editProductForm = this.fb.group({
+      name: new FormControl(product.name, Validators.required),
+      description: new FormControl(product.description, Validators.required),
+      categoryId: new FormControl(product.categoryId, Validators.required),
+      categoryDisplayName: new FormControl(product.categoryDisplayName, Validators.required),
+      price: new FormControl(product.price, [Validators.required, Validators.min(0)]),
+      active: new FormControl(product.active, Validators.required),
+      lastUpdatedBy: new FormControl(this.isAdmin ? 'admin' : 'user', Validators.required),
+      lastUpdatedAt: new FormControl(new Date().toISOString().slice(0, 16), Validators.required)
+    });
+
+    this.loadCategories(() => this.syncCategoryFields(this.editProductForm!));
+  }
+
+  delete(id: number): void {
+    if (confirm('Are you sure you want to delete this product?')) {
+      const headers = this.isAdmin
+        ? new HttpHeaders({ Authorization: 'Basic ' + btoa('admin:admin') })
+        : new HttpHeaders();
+
+      this.productService.delete(id, headers).subscribe(() => {
+        this.loadProducts();
+      });
+    }
+  }
+
   cancel(): void {
+    this.editingProductId = null;
     if (this.newProductForm) this.newProductForm.reset();
+    if (this.editProductForm) this.editProductForm.reset();
     this.newProductForm = null;
+    this.editProductForm = null;
   }
 
   save(): void {
@@ -80,7 +110,17 @@ export class TableComponent {
         this.loadProducts();
         this.cancel();
       });
+    } else if (this.editProductForm?.valid && this.editingProductId !== null) {
+      const updatedProduct = ProductBuilder.fromForm(this.editProductForm.value);
+      this.productService.update(this.editingProductId, updatedProduct).subscribe(() => {
+        this.loadProducts();
+        this.cancel();
+      });
     }
+  }
+
+  toggleAdmin(): void {
+    this.isAdmin = !this.isAdmin;
   }
 
   private syncCategoryFields(form: FormGroup): void {
